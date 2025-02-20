@@ -1,0 +1,64 @@
+# version: '3.9'
+
+# services:
+#   snow:
+#     container_name: snow1
+#     build:
+#       context: ./chroma
+#       dockerfile: Dockerfile
+#     restart: unless-stopped
+#     ports:
+#       - "{{  dynamic_port }}:8000"
+#     # env_file:
+#     #  - .env
+
+
+
+version: '3.9'
+
+services:
+  snow:
+    image: chromadb/chroma
+    container_name: {{ container_name }}
+    restart: unless-stopped
+    ports:
+      - "{{ dynamic_port }}:8000"
+    # environment:
+    #   - VIRTUAL_HOST={{ snow_domain }}.{{ domain }}
+    #   - LETSENCRYPT_HOST={{ snow_domain }}.{{ domain }}
+    #   - LETSENCRYPT_EMAIL=omareldalal@gmail.com
+
+
+#   nginx-proxy:
+#     image: nginxproxy/nginx-proxy
+#     container_name: nginx-{{ container_name }}
+#     ports:
+#       - "80:80"
+#       - "443:443"
+#     restart: always
+#     volumes:
+#       - ./certs:/etc/nginx/certs
+#       - ./vhosts:/etc/nginx/vhost.d
+#       - ./html:/usr/share/nginx/html
+#       - /var/run/docker.sock:/tmp/docker.sock:ro
+
+#   acme-companion:
+#     image: nginxproxy/acme-companion
+#     container_name: acme-{{ container_name }}
+#     environment:
+#       - DEFAULT_EMAIL=omareldalal@gmail.com"
+#     volumes_from:
+#       - nginx-proxy
+#     restart: always
+#     volumes:
+#       - ./certs:/etc/nginx/certs:rw
+#       - ./acme:/etc/acme.sh
+#       - /var/run/docker.sock:/var/run/docker.sock:ro
+
+#     depends_on:
+#       - nginx-proxy
+
+
+# networks:
+#   app_network:
+#     driver: bridge

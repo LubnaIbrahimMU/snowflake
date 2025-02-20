@@ -1,0 +1,121 @@
+---
+# tasks file for snowflake
+
+
+- name: Ensure /opt/app/{{ appDir }}/chroma directory exists
+  file:
+    path: "/opt/app/{{ appDir }}/victordb"
+    state: directory
+    mode: '0755'
+
+- name: Generate a random port and store it
+  set_fact:
+    dynamic_port: "{{ range(8000, 9000) | random }}"
+
+
+# - name: copy chroma requirments
+#   template:
+#     src: requirements.txt
+#     dest: /opt/app/{{appDir}}/victordb/requirements.txt
+
+# - name: copy chroma Dockerfile
+#   template:
+#     src: Dockerfile
+#     dest: /opt/app/{{appDir}}/victordb/Dockerfile
+
+
+- name: copy docker compose file
+  template:
+    src: docker-compose.yml
+    dest: /opt/app/{{appDir}}
+
+
+- name: Copy Nginx config of snow
+  template:
+    src: snow.conf
+    dest: /etc/nginx/conf.d/{{ container_name }}.conf
+
+- name: Validate Nginx Configuration
+  ansible.builtin.shell:
+    cmd: nginx -t
+  register: nginx_test
+  ignore_errors: true
+
+- name: Print Nginx Validation Output
+  debug:
+    var: nginx_test.stdout_lines
+
+- name: Restart Nginx
+  ansible.builtin.systemd:
+    name: nginx
+    state: restarted
+  when: nginx_test.rc == 0
+
+- name: Debug Cloudflare Variables
+  debug:
+    msg:
+      domain: "{{ domain }}"
+      snow_domain: "{{ snow_domain }}"
+      ec2_instance: "{{ ec2_instance }}"
+
+- name: Add subdomain record for Snowflake
+  cloudflare_dns:
+    zone: "{{ domain }}"
+    record: "{{ snow_domain }}"
+    solo: true
+    type: A
+    value: "{{ ec2_instance }}"
+    account_email: "lubnaibrahim000@gmail.com"
+    account_api_key: "{{ cloudflare_api_key }}"
+  tags: cloudflare
+
+- name: Print Snow subdomain
+  debug:
+    msg: "{{ snow_domain }}.{{ domain }}"
+
+- name: Wait 30 seconds for DNS propagation
+  pause:
+    seconds: 30
+  tags: 
+    - wait
+
+
+# - name: Validate Nginx configuration
+#   ansible.builtin.shell:
+#     cmd: nginx -t
+#   register: nginx_test
+#   ignore_errors: true
+#   tags:
+#     - validate
+
+# - name: Restart Nginx
+#   ansible.builtin.systemd:
+#     name: nginx
+#     state: restarted
+#   when: nginx_test.rc == 0
+#   tags:
+#     - restart
+
+- name: Obtain SSL Certificate
+  ansible.builtin.shell:
+    cmd: |
+      certbot --nginx -d {{ snow_domain }}.{{ domain }} --non-interactive --agree-tos --email lubnaibrahim000@gmail.com
+  when: nginx_test.rc == 0
+  tags:
+    - ssl
+
+- name: Restart Nginx to apply SSL
+  ansible.builtin.systemd:
+    name: nginx
+    state: restarted
+  tags:
+    - restart
+
+
+- name: Start container
+  shell: |
+    cd /opt/app/{{ appDir }} && docker compose up -d --build
+  tags:
+    - deploy
+
+
